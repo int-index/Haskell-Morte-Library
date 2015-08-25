@@ -25,7 +25,7 @@ import Data.Text.Lazy.Builder (toLazyText)
 import Data.Typeable (Typeable)
 import Lens.Micro (_1, _2)
 import Lens.Micro.Mtl ((.=), use, zoom)
-import Morte.Core (Var(..), Const(..), Path(..), Expr(..))
+import Morte.Core
 import qualified Morte.Lexer as Lexer
 import Morte.Lexer (Token, Position)
 import Pipes (Producer, hoist, lift, next)

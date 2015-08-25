@@ -1,9 +1,13 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable     #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE DeriveTraversable  #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveFoldable       #-}
+{-# LANGUAGE DeriveFunctor        #-}
+{-# LANGUAGE DeriveTraversable    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE StandaloneDeriving   #-}
+{-# LANGUAGE PatternSynonyms      #-}
 {-# OPTIONS_GHC -Wall #-}
 
 {-| This module contains the core calculus for the Morte language.  This
@@ -50,7 +54,14 @@ module Morte.Core (
     Const(..),
     Path(..),
     X(..),
-    Expr(..),
+    Expr,
+    pattern Const,
+    pattern Var,
+    pattern Lam,
+    pattern Pi,
+    pattern App,
+    pattern Embed,
+    Expr'(..),
     Context,
 
     -- * Core functions
@@ -68,6 +79,7 @@ module Morte.Core (
     TypeMessage(..),
     ) where
 
+import Data.Functor.Identity
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Control.DeepSeq (NFData(..))
 import Control.Exception (Exception)
@@ -226,22 +238,35 @@ instance Buildable X where
     build = absurd
 
 -- | Syntax tree for expressions
-data Expr a
+data Expr' f a
     -- | > Const c        ~  c
-    = Const Const
+    = Const' (f Const)
     -- | > Var (V x 0)    ~  x
     --   > Var (V x n)    ~  x@n
-    | Var Var
+    | Var' (f Var)
     -- | > Lam x     A b  ~  λ(x : A) → b
-    | Lam Text (Expr a) (Expr a)
+    | Lam' (f Text) (f (Expr' f a)) (f (Expr' f a))
     -- | > Pi x      A B  ~  ∀(x : A) → B
     --   > Pi unused A B  ~        A  → B
-    | Pi  Text (Expr a) (Expr a)
+    | Pi'  (f Text) (f (Expr' f a)) (f (Expr' f a))
     -- | > App f a        ~  f a
-    | App (Expr a) (Expr a)
+    | App' (f (Expr' f a)) (f (Expr' f a))
     -- | > Embed path     ~  #path
-    | Embed a
-    deriving (Functor, Foldable, Traversable, Show)
+    | Embed' (f a)
+
+type Expr = Expr' Identity
+
+pattern Const c = Const' (Identity c)
+pattern Var v = Var' (Identity v)
+pattern Lam x _A  b = Lam' (Identity x) (Identity _A) (Identity  b)
+pattern Pi  x _A _B = Pi'  (Identity x) (Identity _A) (Identity _B)
+pattern App f a = App' (Identity f) (Identity a)
+pattern Embed a = Embed' (Identity a)
+
+deriving instance Functor Expr
+deriving instance Foldable Expr
+deriving instance Traversable Expr
+deriving instance Show a => Show (Expr a)
 
 instance Applicative Expr where
     pure = Embed
